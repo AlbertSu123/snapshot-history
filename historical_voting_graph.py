@@ -3,13 +3,10 @@ from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 import pandas as pd
 
-# Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://hub.snapshot.org/graphql")
-
-# Create a GraphQL client using the defined transport
 client = Client(transport=transport, fetch_schema_from_transport=True)
 
-# Historical voting results
+# Get voting results for the Sushiswap Kanpai proposal
 query = gql(
     """
 query Votes {
@@ -30,10 +27,11 @@ query Votes {
 """
 )
 
-# Execute the query on the transport
+# Format the data to display in a time series graph format
 result = client.execute(query)
 votes = result["votes"]
-history = [{'timestamp': 0, '1': 0, '2': 0, '3': 0}]  # array of dicts [timestamp, choice 1 count, choice 2 count, choice 3 count]
+# array of dicts [timestamp, choice 1 count, choice 2 count, choice 3 count]
+history = [{'timestamp': 0, '1': 0, '2': 0, '3': 0}]  
 for i in range(0, len(votes)):
     prev = history[i]
     choice = votes[i]['choice']
