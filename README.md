@@ -1,6 +1,8 @@
 ## Quickstart
 `git clone https://github.com/AlbertSu123/snapshot-history.git`
+
 `pip3 install gql aiohttp` and install anything else that might be missing
+
 `python3 solution.py` 
 # Standard Crypto Engineering Take-Home Challenge
 
