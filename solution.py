@@ -1,5 +1,4 @@
 import json
-from matplotlib import pyplot as plt
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 from collections import defaultdict
