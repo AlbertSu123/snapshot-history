@@ -4,11 +4,14 @@ from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 from collections import defaultdict
 
+# Global Constants
 transport = AIOHTTPTransport(url="https://hub.snapshot.org/graphql")
 client = Client(transport=transport, fetch_schema_from_transport=True)
-
+json_file_name = "data.json"
 
 # @return list of proposal ids for aave.eth
+
+
 def get_all_aave_proposals():
     query = gql(
         """
@@ -31,18 +34,23 @@ def get_all_aave_proposals():
     result = client.execute(query)
     votes = result["proposals"]
     proposal_ids = [i['id'] for i in votes]
-    with open('data.json', 'w') as f:
-        json.dump(proposal_ids, f)
+    data = {'proposal_ids': proposal_ids, 'votes': {}, 'i': 0}
+    with open(json_file_name, 'w') as f:
+        json.dump(data, f)
+    print("Retrieved %s proposals from aave.eth" % len(proposal_ids))
 
 # TODO: implement pagination
 # Get all voters for each proposal
 # @param proposal_ids list of proposal ids (eg. ['0x123', '0x456'])
-# @return (proposal_id => list of addresses that voted on this proposal)
 
 
-def get_voters_dict(proposal_ids):
+def get_voters_dict():
     votes = {}
-    for proposal_id in proposal_ids:
+    with open('data.json') as json_file:
+        data = json.load(json_file)
+    proposal_ids = data['proposal_ids']
+    for i in range(data['i'], len(proposal_ids)):
+        print("Proposal: ", i)
         query = gql(
             """
             query Votes {
@@ -58,11 +66,26 @@ def get_voters_dict(proposal_ids):
                 voter
               }
             }
-          """ % (proposal_id)
+          """ % (proposal_ids[i])
         )
         result = client.execute(query)
-        votes[proposal_id] = result["votes"]
-        return votes
+        votes[proposal_ids[i]] = result["votes"]
+        data['i'] = i
+        data['votes'] = votes
+        with open('data.json', 'w') as f:
+            json.dump(data, f)
+
+# @return (proposal_id => list of addresses that voted on this proposal)
+
+
+def clean_dict():
+    with open('data.json') as json_file:
+        data = json.load(json_file)
+    votes = {}
+    for proposal_id in data['votes']:
+        votes[proposal_id] = [i['voter']
+                              for i in data['votes'][proposal_id]]
+    return votes
 
 
 def find_upenn_participation_rate(votes):
@@ -77,7 +100,7 @@ def find_upenn_participation_rate(votes):
 
 def find_top_20_active_voters(votes):
     # (address => number of votes)
-    voters = defaultdict(0)
+    voters = defaultdict(lambda: 0)
     for proposal_id in votes:
         for voter in votes[proposal_id]:
             voters[voter] += 1
@@ -85,7 +108,11 @@ def find_top_20_active_voters(votes):
 
 
 def solve():
-    aave_proposal_ids = get_all_aave_proposals()
-    votes = get_voters_dict(aave_proposal_ids)
+    get_all_aave_proposals()
+    get_voters_dict()
+    votes = clean_dict()
     print(find_upenn_participation_rate(votes))
     print(find_top_20_active_voters(votes))
+
+
+solve()
