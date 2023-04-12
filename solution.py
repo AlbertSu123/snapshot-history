@@ -7,60 +7,62 @@ from collections import defaultdict
 transport = AIOHTTPTransport(url="https://hub.snapshot.org/graphql")
 client = Client(transport=transport, fetch_schema_from_transport=True)
 
-# Find all aave proposals
-query = gql(
-    """
-query Proposals {
-  proposals (
-    first: 1000,
-    skip: 0,
-    where: {
-      space_in: ["aave.eth"],
-      state: "closed"
-    },
-    orderBy: "created",
-    orderDirection: desc
-  ) {
-    id
-  }
-}
-"""
-)
 
-result = client.execute(query)
-votes = result["proposals"]
-proposal_ids = [i['id'] for i in votes]
-with open('data.json', 'w') as f:
-    json.dump(proposal_ids, f)
-print(proposal_ids)
-print(len(proposal_ids))
-
-# (proposal_id => [addresses that voted])
-votes = {}
-
-# Get all voters for each proposal
-# TODO: implement pagination
-for proposal_id in proposal_ids:
+# @return list of proposal ids for aave.eth
+def get_all_aave_proposals():
     query = gql(
         """
-    query Votes {
-      votes (
-        first: 1000
-        skip: 0
-        where: {
-          proposal: "%s"
+        query Proposals {
+          proposals (
+            first: 1000,
+            skip: 0,
+            where: {
+              space_in: ["aave.eth"],
+              state: "closed"
+            },
+            orderBy: "created",
+            orderDirection: desc
+          ) {
+            id
+          }
         }
-        orderBy: "created",
-        orderDirection: desc
-      ) {
-        voter
-      }
-    }
-  """ % (proposal_id)
+        """
     )
     result = client.execute(query)
-    votes[proposal_id] = result["votes"]
-    print(len(result["votes"]))
+    votes = result["proposals"]
+    proposal_ids = [i['id'] for i in votes]
+    with open('data.json', 'w') as f:
+        json.dump(proposal_ids, f)
+
+# TODO: implement pagination
+# Get all voters for each proposal
+# @param proposal_ids list of proposal ids (eg. ['0x123', '0x456'])
+# @return (proposal_id => list of addresses that voted on this proposal)
+
+
+def get_voters_dict(proposal_ids):
+    votes = {}
+    for proposal_id in proposal_ids:
+        query = gql(
+            """
+            query Votes {
+              votes (
+                first: 1000
+                skip: 0
+                where: {
+                  proposal: "%s"
+                }
+                orderBy: "created",
+                orderDirection: desc
+              ) {
+                voter
+              }
+            }
+          """ % (proposal_id)
+        )
+        result = client.execute(query)
+        votes[proposal_id] = result["votes"]
+        return votes
 
 
 def find_upenn_participation_rate(votes):
@@ -82,5 +84,8 @@ def find_top_20_active_voters(votes):
     return sorted(voters.items(), key=lambda x: x[1], reverse=True)[:20]
 
 
-print(find_upenn_participation_rate(votes))
-print(find_top_20_active_voters(votes))
+def solve():
+    aave_proposal_ids = get_all_aave_proposals()
+    votes = get_voters_dict(aave_proposal_ids)
+    print(find_upenn_participation_rate(votes))
+    print(find_top_20_active_voters(votes))
